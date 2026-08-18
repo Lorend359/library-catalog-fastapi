@@ -7,11 +7,25 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+fastapi = "^0.141.1"
+uvicorn = {extras = ["standard"], version = "^0.52.3"}
+sqlalchemy = "^2.0.52"
+alembic = "^1.19.1"
+asyncpg = "^0.31.0"
+pydantic = "^2.13.4"
+pydantic-settings = "^2.15.0"
+httpx = "^0.28.1"
+python-dotenv = "^1.2.3"
 
 
 [tool.poetry.group.lint.dependencies]
 mypy = "^2.3.0"
 ruff = "^0.16.3"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.1.1"
+pytest-asyncio = "^1.4.0"
 
 [build-system]
 requires = ["poetry-core"]
