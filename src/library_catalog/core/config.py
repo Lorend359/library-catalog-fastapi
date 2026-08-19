@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     environment: Literal["development", "staging", "production"]
     debug: bool
     database_url: PostgresDsn
+    database_pool_size: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -21,6 +22,9 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment == "production"
 
+    @property
+    def database_url_str(self) -> str:
+        return str(self.database_url)
 
 @lru_cache
 def get_settings() -> Settings:
