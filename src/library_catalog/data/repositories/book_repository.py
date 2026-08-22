@@ -10,14 +10,14 @@ class BookRepository(BaseRepository[Book]):
         super().__init__(session, Book)
 
     async def find_by_filters(
-            self,
-            title: str | None = None,
-            author: str | None = None,
-            genre: str | None = None,
-            year: int | None = None,
-            available: bool | None = None,
-            limit: int = 20,
-            offset: int = 0,
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        genre: str | None = None,
+        year: int | None = None,
+        available: bool | None = None,
+        limit: int = 20,
+        offset: int = 0,
     ) -> list[Book]:
         """Поиск книг с фильтрацией."""
         stmt = select(Book)
@@ -47,12 +47,12 @@ class BookRepository(BaseRepository[Book]):
         return result.scalar_one_or_none()
 
     async def count_by_filters(
-            self,
-            title: str | None = None,
-            author: str | None = None,
-            genre: str | None = None,
-            year: int | None = None,
-            available: bool | None = None,
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        genre: str | None = None,
+        year: int | None = None,
+        available: bool | None = None,
     ) -> int:
         """Подсчитать количество книг по фильтрам."""
         stmt = select(func.count()).select_from(Book)

@@ -167,33 +167,26 @@ class BookService:
     ):
         self.book_repo = book_repo
         self.ol_client = ol_client
-    
+
     async def create_book(self, book_data: BookCreate) -> ShowBook:
         # Валидация бизнес-правил
         self._validate_book_data(book_data)
-        
+
         # Обогащение из внешнего API
-        extra = await self.ol_client.enrich(
-            title=book_data.title,
-            author=book_data.author,
-            isbn=book_data.isbn
-        )
-        
+        extra = await self.ol_client.enrich(title=book_data.title, author=book_data.author, isbn=book_data.isbn)
+
         # Работа с БД через репозиторий
-        book = await self.book_repo.create(
-            **book_data.dict(),
-            extra=extra
-        )
-        
+        book = await self.book_repo.create(**book_data.dict(), extra=extra)
+
         # Маппинг в DTO
         return BookMapper.to_show_book(book)
-    
+
     def _validate_book_data(self, data: BookCreate) -> None:
         from datetime import datetime
-        
+
         if data.year > datetime.now().year:
             raise InvalidYearException(data.year)
-        
+
         if data.pages <= 0:
             raise InvalidPagesException(data.pages)
 ```
@@ -272,21 +265,18 @@ class BookRepository:
 class OpenLibraryClient(BaseApiClient):
     async def search_by_isbn(self, isbn: str) -> dict:
         try:
-            data = await self._get(
-                "/search.json",
-                params={"isbn": isbn, "limit": 1}
-            )
+            data = await self._get("/search.json", params={"isbn": isbn, "limit": 1})
             docs = data.get("docs", [])
             if not docs:
                 return {}
-            
+
             return self._extract_book_data(docs[0])
-        
+
         except httpx.TimeoutException:
             raise OpenLibraryTimeoutException(timeout=self.timeout)
         except httpx.HTTPError as e:
             raise OpenLibraryException(str(e))
-    
+
     def _extract_book_data(self, doc: dict) -> dict:
         return {
             "cover_url": self._get_cover_url(doc.get("cover_i")),
@@ -543,6 +533,7 @@ async def health_check():
 # Для запуска через python -m
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
@@ -606,21 +597,24 @@ from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
+
 class Settings(BaseSettings):
     # Добавить все поля
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
     )
-    
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
 
 settings = get_settings()
 ```
@@ -645,8 +639,10 @@ settings = get_settings()
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
+
 class Base(DeclarativeBase):
     pass
+
 
 # Создать engine
 engine = create_async_engine(
@@ -661,6 +657,7 @@ async_session_maker = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
 
 # Dependency для FastAPI
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -708,24 +705,25 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from ...core.database import Base
 
+
 class Book(Base):
     __tablename__ = "books"
-    
+
     book_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
         index=True,
     )
-    
+
     title: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
         index=True,
     )
-    
+
     # ... остальные поля
-    
+
     def __repr__(self) -> str:
         return f"<Book(id={self.book_id}, title='{self.title}')>"
 ```
@@ -751,34 +749,35 @@ from typing import Generic, TypeVar, Type
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class BaseRepository(Generic[T]):
     def __init__(self, session: AsyncSession, model: Type[T]):
         self.session = session
         self.model = model
-    
+
     async def create(self, **kwargs) -> T:
         """Создать запись."""
         pass
-    
+
     async def get_by_id(self, id: UUID) -> T | None:
         """
         Получить по ID.
-        
+
         📝 Примечание: session.get() автоматически работает с primary key модели,
         независимо от его названия (id, book_id, user_id и т.д.)
         """
         pass
-    
+
     async def update(self, id: UUID, **kwargs) -> T | None:
         """Обновить запись."""
         pass
-    
+
     async def delete(self, id: UUID) -> bool:
         """Удалить запись."""
         pass
-    
+
     async def get_all(
         self,
         limit: int = 100,
@@ -887,10 +886,7 @@ config = context.config
 
 # Установить database_url из settings
 # ⚠️ ВАЖНО: Убираем +asyncpg для alembic, используем postgresql:// вместо postgresql+asyncpg://
-config.set_main_option(
-    "sqlalchemy.url",
-    str(settings.database_url).replace("+asyncpg", "")
-)
+config.set_main_option("sqlalchemy.url", str(settings.database_url).replace("+asyncpg", ""))
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
@@ -1012,47 +1008,60 @@ docker-compose exec postgres psql -U postgres -d library_catalog
 from uuid import UUID
 from ..core.exceptions import AppException, NotFoundException
 
+
 class BookNotFoundException(NotFoundException):
     """Книга не найдена."""
+
     def __init__(self, book_id: UUID):
         super().__init__(resource="Book", identifier=book_id)
 
+
 class BookAlreadyExistsException(AppException):
     """Книга с таким ISBN уже существует."""
+
     def __init__(self, isbn: str):
         super().__init__(
             message=f"Book with ISBN '{isbn}' already exists",
             status_code=409,
         )
 
+
 class InvalidYearException(AppException):
     """Невалидный год издания."""
+
     def __init__(self, year: int):
         from datetime import datetime
+
         current_year = datetime.now().year
         super().__init__(
             message=f"Year {year} is invalid (must be 1000-{current_year})",
             status_code=400,
         )
 
+
 class InvalidPagesException(AppException):
     """Невалидное количество страниц."""
+
     def __init__(self, pages: int):
         super().__init__(
             message=f"Pages count must be positive, got {pages}",
             status_code=400,
         )
 
+
 class OpenLibraryException(AppException):
     """Ошибка Open Library API."""
+
     def __init__(self, message: str):
         super().__init__(
             message=f"Open Library API error: {message}",
             status_code=503,
         )
 
+
 class OpenLibraryTimeoutException(AppException):
     """Таймаут при обращении к Open Library API."""
+
     def __init__(self, timeout: float):
         super().__init__(
             message=f"Open Library API timeout after {timeout}s",
@@ -1074,17 +1083,18 @@ class OpenLibraryTimeoutException(AppException):
 from ...data.models.book import Book
 from ...api.v1.schemas.book import ShowBook
 
+
 class BookMapper:
     """Маппер для преобразования Book entity в DTO."""
-    
+
     @staticmethod
     def to_show_book(book: Book) -> ShowBook:
         """
         Преобразовать Book ORM модель в ShowBook DTO.
-        
+
         Args:
             book: ORM модель из БД
-            
+
         Returns:
             ShowBook: Pydantic модель для API
         """
@@ -1102,7 +1112,7 @@ class BookMapper:
             created_at=book.created_at,
             updated_at=book.updated_at,
         )
-    
+
     @staticmethod
     def to_show_books(books: list[Book]) -> list[ShowBook]:
         """Преобразовать список книг."""
@@ -1141,13 +1151,14 @@ from ...external.openlibrary.client import OpenLibraryClient
 from ..exceptions import *
 from ..mappers.book_mapper import BookMapper
 
+
 class BookService:
     """
     Сервис для работы с книгами.
-    
+
     Содержит всю бизнес-логику приложения.
     """
-    
+
     def __init__(
         self,
         book_repository: BookRepository,
@@ -1155,22 +1166,22 @@ class BookService:
     ):
         self.book_repo = book_repository
         self.ol_client = openlibrary_client
-    
+
     async def create_book(self, book_data: BookCreate) -> ShowBook:
         """
         Создать новую книгу с обогащением из Open Library.
-        
+
         Бизнес-правила:
         - Год не в будущем
         - Страницы > 0
         - ISBN уникален (если указан)
-        
+
         Args:
             book_data: Данные для создания
-            
+
         Returns:
             ShowBook: Созданная книга
-            
+
         Raises:
             InvalidYearException: Если год невалиден
             InvalidPagesException: Если страницы <= 0
@@ -1178,16 +1189,16 @@ class BookService:
         """
         # 1. Валидация бизнес-правил
         self._validate_book_data(book_data)
-        
+
         # 2. Проверка уникальности ISBN
         if book_data.isbn:
             existing = await self.book_repo.find_by_isbn(book_data.isbn)
             if existing:
                 raise BookAlreadyExistsException(book_data.isbn)
-        
+
         # 3. Обогащение данных из Open Library
         extra = await self._enrich_book_data(book_data)
-        
+
         # 4. Создание в БД
         book = await self.book_repo.create(
             title=book_data.title,
@@ -1199,23 +1210,23 @@ class BookService:
             description=book_data.description,
             extra=extra,
         )
-        
+
         # 5. Маппинг в DTO
         return BookMapper.to_show_book(book)
-    
+
     async def get_book(self, book_id: UUID) -> ShowBook:
         """
         Получить книгу по ID.
-        
+
         Raises:
             BookNotFoundException: Если книга не найдена
         """
         book = await self.book_repo.get_by_id(book_id)
         if book is None:
             raise BookNotFoundException(book_id)
-        
+
         return BookMapper.to_show_book(book)
-    
+
     async def update_book(
         self,
         book_id: UUID,
@@ -1223,39 +1234,36 @@ class BookService:
     ) -> ShowBook:
         """
         Обновить книгу.
-        
+
         Обновляются только переданные поля.
         """
         # Проверить существование
         existing = await self.book_repo.get_by_id(book_id)
         if existing is None:
             raise BookNotFoundException(book_id)
-        
+
         # Валидация если обновляется год/страницы
         if book_data.year is not None:
             self._validate_year(book_data.year)
         if book_data.pages is not None:
             self._validate_pages(book_data.pages)
-        
+
         # Обновить
-        updated = await self.book_repo.update(
-            book_id,
-            **book_data.dict(exclude_unset=True)
-        )
-        
+        updated = await self.book_repo.update(book_id, **book_data.dict(exclude_unset=True))
+
         return BookMapper.to_show_book(updated)
-    
+
     async def delete_book(self, book_id: UUID) -> None:
         """
         Удалить книгу.
-        
+
         Raises:
             BookNotFoundException: Если книга не найдена
         """
         deleted = await self.book_repo.delete(book_id)
         if not deleted:
             raise BookNotFoundException(book_id)
-    
+
     async def search_books(
         self,
         title: str | None = None,
@@ -1268,7 +1276,7 @@ class BookService:
     ) -> tuple[list[ShowBook], int]:
         """
         Поиск книг с фильтрацией и пагинацией.
-        
+
         Returns:
             tuple: (список книг, общее количество)
         """
@@ -1282,7 +1290,7 @@ class BookService:
             limit=limit,
             offset=offset,
         )
-        
+
         # Подсчитать общее количество
         total = await self.book_repo.count_by_filters(
             title=title,
@@ -1291,36 +1299,33 @@ class BookService:
             year=year,
             available=available,
         )
-        
+
         return BookMapper.to_show_books(books), total
-    
+
     # ========== ПРИВАТНЫЕ МЕТОДЫ ==========
-    
+
     def _validate_book_data(self, data: BookCreate) -> None:
         """Валидация бизнес-правил для новой книги."""
         self._validate_year(data.year)
         self._validate_pages(data.pages)
-    
+
     def _validate_year(self, year: int) -> None:
         """Проверить что год валиден."""
         from datetime import datetime
-        
+
         current_year = datetime.now().year
         if year < 1000 or year > current_year:
             raise InvalidYearException(year)
-    
+
     def _validate_pages(self, pages: int) -> None:
         """Проверить что количество страниц валидно."""
         if pages <= 0:
             raise InvalidPagesException(pages)
-    
-    async def _enrich_book_data(
-        self,
-        book_data: BookCreate
-    ) -> dict | None:
+
+    async def _enrich_book_data(self, book_data: BookCreate) -> dict | None:
         """
         Обогатить данные книги из Open Library.
-        
+
         Не выбрасывает исключение если API недоступен.
         """
         try:
@@ -1333,10 +1338,11 @@ class BookService:
         except OpenLibraryException:
             # Логируем но не прерываем создание книги
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
                 "Failed to enrich book data from Open Library",
-                extra={"title": book_data.title, "author": book_data.author}
+                extra={"title": book_data.title, "author": book_data.author},
             )
             return None
 ```
@@ -1381,17 +1387,18 @@ import httpx
 import logging
 import time
 
+
 class BaseApiClient(ABC):
     """
     Базовый класс для HTTP клиентов внешних API.
-    
+
     Включает:
     - Retry логику
     - Обработку ошибок
     - Логирование
     - Timeout management
     """
-    
+
     def __init__(
         self,
         base_url: str,
@@ -1405,18 +1412,18 @@ class BaseApiClient(ABC):
         self.backoff = backoff
         self._client = httpx.AsyncClient(timeout=self.timeout)
         self.logger = logging.getLogger(self.client_name())
-    
+
     @abstractmethod
     def client_name(self) -> str:
         """Имя клиента для логирования."""
         pass
-    
+
     def _build_url(self, path: str) -> str:
         """Построить полный URL."""
         if not path.startswith("/"):
             path = "/" + path
         return self.base_url + path
-    
+
     async def _request(
         self,
         method: str,
@@ -1427,17 +1434,17 @@ class BaseApiClient(ABC):
     ) -> dict:
         """
         Выполнить HTTP запрос с retry логикой.
-        
+
         Raises:
             httpx.TimeoutException: При таймауте
             httpx.HTTPError: При HTTP ошибке
         """
         url = self._build_url(path)
-        
+
         for attempt in range(self.retries):
             try:
                 self.logger.debug(f"{method} {url} params={params}")
-                
+
                 response = await self._client.request(
                     method=method,
                     url=url,
@@ -1445,33 +1452,33 @@ class BaseApiClient(ABC):
                     json=json,
                     headers=headers,
                 )
-                
+
                 response.raise_for_status()
                 return response.json()
-            
+
             except httpx.TimeoutException:
                 if attempt == self.retries - 1:
                     self.logger.error(f"Timeout after {self.retries} attempts")
                     raise
-                
-                wait_time = self.backoff * (2 ** attempt)
+
+                wait_time = self.backoff * (2**attempt)
                 self.logger.warning(f"Timeout, retrying in {wait_time}s...")
                 time.sleep(wait_time)
-            
+
             except httpx.HTTPStatusError as e:
                 # 5xx ошибки - retry
                 if e.response.status_code >= 500 and attempt < self.retries - 1:
-                    wait_time = self.backoff * (2 ** attempt)
+                    wait_time = self.backoff * (2**attempt)
                     self.logger.warning(f"Server error, retrying in {wait_time}s...")
                     time.sleep(wait_time)
                 else:
                     self.logger.error(f"HTTP error: {e}")
                     raise
-    
+
     async def _get(self, path: str, **kwargs) -> dict:
         """GET запрос."""
         return await self._request("GET", path, **kwargs)
-    
+
     async def close(self) -> None:
         """Закрыть HTTP клиент."""
         await self._client.aclose()
@@ -1492,76 +1499,63 @@ class BaseApiClient(ABC):
 from ..base.base_client import BaseApiClient
 from ...domain.exceptions import OpenLibraryException, OpenLibraryTimeoutException
 
+
 class OpenLibraryClient(BaseApiClient):
     """Клиент для Open Library API."""
-    
+
     def __init__(
         self,
         base_url: str = "https://openlibrary.org",
         timeout: float = 10.0,
     ):
         super().__init__(base_url, timeout=timeout)
-    
+
     def client_name(self) -> str:
         return "openlibrary"
-    
+
     async def search_by_isbn(self, isbn: str) -> dict:
         """
         Поиск книги по ISBN.
-        
+
         Args:
             isbn: ISBN-10 или ISBN-13
-            
+
         Returns:
             dict: Данные книги (cover_url, subjects, etc.)
-            
+
         Raises:
             OpenLibraryException: При ошибке API
         """
         try:
-            data = await self._get(
-                "/search.json",
-                params={"isbn": isbn, "limit": 1}
-            )
-            
+            data = await self._get("/search.json", params={"isbn": isbn, "limit": 1})
+
             docs = data.get("docs", [])
             if not docs:
                 return {}
-            
+
             return self._extract_book_data(docs[0])
-        
+
         except httpx.TimeoutException:
             raise OpenLibraryTimeoutException(self.timeout)
         except httpx.HTTPError as e:
             raise OpenLibraryException(str(e))
-    
-    async def search_by_title_author(
-        self,
-        title: str,
-        author: str
-    ) -> dict:
+
+    async def search_by_title_author(self, title: str, author: str) -> dict:
         """Поиск по названию и автору."""
         try:
-            data = await self._get(
-                "/search.json",
-                params={
-                    "title": title,
-                    "author": author,
-                    "limit": 1
-                }
-            )
-            
+            data = await self._get("/search.json", params={"title": title, "author": author, "limit": 1})
+
             docs = data.get("docs", [])
             if not docs:
                 return {}
-            
+
             return self._extract_book_data(docs[0])
-        
+
         except httpx.TimeoutException:
             raise OpenLibraryTimeoutException(self.timeout)
         except httpx.HTTPError as e:
             raise OpenLibraryException(str(e))
-    
+
     async def enrich(
         self,
         title: str,
@@ -1570,9 +1564,9 @@ class OpenLibraryClient(BaseApiClient):
     ) -> dict:
         """
         Обогатить данные книги.
-        
+
         Сначала пытается найти по ISBN, затем по title+author.
-        
+
         Returns:
             dict: Обогащенные данные или пустой словарь
         """
@@ -1581,46 +1575,44 @@ class OpenLibraryClient(BaseApiClient):
             data = await self.search_by_isbn(isbn)
             if data:
                 return data
-        
+
         # Попытка 2: По title + author
         return await self.search_by_title_author(title, author)
-    
+
     def _extract_book_data(self, doc: dict) -> dict:
         """
         Извлечь нужные поля из ответа Open Library.
-        
+
         Args:
             doc: Документ из массива docs
-            
+
         Returns:
             dict: Обработанные данные
         """
         result = {}
-        
+
         # Cover URL
         if cover_id := doc.get("cover_i"):
-            result["cover_url"] = (
-                f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
-            )
-        
+            result["cover_url"] = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
+
         # Subjects (темы)
         if subjects := doc.get("subject"):
             result["subjects"] = subjects[:10]  # Первые 10
-        
+
         # Publisher
         if publisher := doc.get("publisher"):
             result["publisher"] = publisher[0] if publisher else None
-        
+
         # Language
         if language := doc.get("language"):
             result["language"] = language[0] if language else None
-        
+
         # Ratings
         if ratings := doc.get("ratings_average"):
             result["rating"] = ratings
-        
+
         return result
-    
+
     def _get_cover_url(self, cover_id: int | None) -> str | None:
         """Получить URL обложки."""
         if not cover_id:
@@ -1637,9 +1629,10 @@ class OpenLibraryClient(BaseApiClient):
 ```python
 from pydantic import BaseModel, Field
 
+
 class OpenLibrarySearchDoc(BaseModel):
     """Документ из поиска Open Library."""
-    
+
     title: str
     author_name: list[str] | None = Field(None, alias="author_name")
     cover_i: int | None = Field(None, alias="cover_i")
@@ -1647,14 +1640,14 @@ class OpenLibrarySearchDoc(BaseModel):
     publisher: list[str] | None = None
     language: list[str] | None = None
     ratings_average: float | None = Field(None, alias="ratings_average")
-    
+
     class Config:
         populate_by_name = True
 
 
 class OpenLibrarySearchResponse(BaseModel):
     """Ответ от /search.json"""
-    
+
     numFound: int
     docs: list[OpenLibrarySearchDoc]
 ```
@@ -1674,21 +1667,20 @@ class OpenLibrarySearchResponse(BaseModel):
 # Проверить работу клиента
 import asyncio
 
+
 async def test():
     client = OpenLibraryClient()
-    
+
     # Тест по ISBN
     data = await client.search_by_isbn("9780132350884")
     print(f"Found: {data}")
-    
+
     # Тест по title+author
-    data = await client.search_by_title_author(
-        "Clean Code",
-        "Robert Martin"
-    )
+    data = await client.search_by_title_author("Clean Code", "Robert Martin")
     print(f"Found: {data}")
-    
+
     await client.close()
+
 
 asyncio.run(test())
 ```
@@ -1716,8 +1708,10 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
+
 class BookBase(BaseModel):
     """Базовая схема с общими полями."""
+
     title: str = Field(..., min_length=1, max_length=500)
     author: str = Field(..., min_length=1, max_length=300)
     year: int = Field(..., ge=1000, le=2100)
@@ -1727,29 +1721,30 @@ class BookBase(BaseModel):
 
 class BookCreate(BookBase):
     """Схема для создания книги."""
+
     isbn: str | None = Field(None, min_length=10, max_length=20)
     description: str | None = Field(None, max_length=5000)
-    
+
     @field_validator("isbn")
     @classmethod
     def validate_isbn(cls, v: str | None) -> str | None:
         """Валидация формата ISBN."""
         if v is None:
             return v
-        
+
         # Удалить дефисы
         clean = v.replace("-", "").replace(" ", "")
-        
+
         # Проверить что только цифры (и X для ISBN-10)
         if not clean.replace("X", "").isdigit():
             raise ValueError("ISBN must contain only digits")
-        
+
         # Проверить длину
         if len(clean) not in (10, 13):
             raise ValueError("ISBN must be 10 or 13 digits")
-        
+
         return v
-    
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -1760,7 +1755,7 @@ class BookCreate(BookBase):
                     "genre": "Programming",
                     "pages": 464,
                     "isbn": "978-0132350884",
-                    "description": "A Handbook of Agile Software Craftsmanship"
+                    "description": "A Handbook of Agile Software Craftsmanship",
                 }
             ]
         }
@@ -1769,6 +1764,7 @@ class BookCreate(BookBase):
 
 class BookUpdate(BaseModel):
     """Схема для обновления книги (все поля опциональны)."""
+
     title: str | None = Field(None, min_length=1, max_length=500)
     author: str | None = Field(None, min_length=1, max_length=300)
     year: int | None = Field(None, ge=1000, le=2100)
@@ -1781,6 +1777,7 @@ class BookUpdate(BaseModel):
 
 class ShowBook(BookBase):
     """Схема для отображения книги (response)."""
+
     book_id: UUID
     available: bool
     isbn: str | None
@@ -1788,7 +1785,7 @@ class ShowBook(BookBase):
     extra: dict | None
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {
         "from_attributes": True,  # Для ORM моделей
         "json_schema_extra": {
@@ -1805,18 +1802,19 @@ class ShowBook(BookBase):
                     "description": "A Handbook of Agile Software Craftsmanship",
                     "extra": {
                         "cover_url": "https://covers.openlibrary.org/b/id/123-L.jpg",
-                        "subjects": ["Computer Science", "Software Engineering"]
+                        "subjects": ["Computer Science", "Software Engineering"],
                     },
                     "created_at": "2024-01-01T12:00:00",
-                    "updated_at": "2024-01-01T12:00:00"
+                    "updated_at": "2024-01-01T12:00:00",
                 }
             ]
-        }
+        },
     }
 
 
 class BookFilters(BaseModel):
     """Фильтры для поиска книг."""
+
     title: str | None = Field(None, description="Поиск по названию (частичное совпадение)")
     author: str | None = Field(None, description="Поиск по автору (частичное совпадение)")
     genre: str | None = Field(None, description="Точное совпадение жанра")
@@ -1834,18 +1832,20 @@ class BookFilters(BaseModel):
 from typing import Generic, TypeVar
 from pydantic import BaseModel, Field
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class PaginationParams(BaseModel):
     """Параметры пагинации."""
+
     page: int = Field(1, ge=1, description="Номер страницы")
     page_size: int = Field(20, ge=1, le=100, description="Размер страницы")
-    
+
     @property
     def offset(self) -> int:
         """Вычислить offset для SQL."""
         return (self.page - 1) * self.page_size
-    
+
     @property
     def limit(self) -> int:
         """Limit для SQL."""
@@ -1854,12 +1854,13 @@ class PaginationParams(BaseModel):
 
 class PaginatedResponse(BaseModel, Generic[T]):
     """Generic схема для пагинированных ответов."""
+
     items: list[T]
     total: int = Field(..., description="Всего элементов")
     page: int = Field(..., description="Текущая страница")
     page_size: int = Field(..., description="Размер страницы")
     pages: int = Field(..., description="Всего страниц")
-    
+
     @classmethod
     def create(
         cls,
@@ -1869,7 +1870,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
     ):
         """Создать пагинированный ответ."""
         pages = (total + pagination.page_size - 1) // pagination.page_size
-        
+
         return cls(
             items=items,
             total=total,
@@ -1881,6 +1882,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 class HealthCheckResponse(BaseModel):
     """Схема для health check."""
+
     status: str = "healthy"
     database: str = "connected"
 ```
@@ -1910,11 +1912,12 @@ from ..core.config import settings
 
 # ========== EXTERNAL CLIENTS (Singletons) ==========
 
+
 @lru_cache
 def get_openlibrary_client() -> OpenLibraryClient:
     """
     Получить singleton OpenLibraryClient.
-    
+
     lru_cache создает клиент один раз и переиспользует.
     """
     return OpenLibraryClient(
@@ -1925,12 +1928,11 @@ def get_openlibrary_client() -> OpenLibraryClient:
 
 # ========== REPOSITORIES ==========
 
-async def get_book_repository(
-    db: Annotated[AsyncSession, Depends(get_db)]
-) -> BookRepository:
+
+async def get_book_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> BookRepository:
     """
     Создать BookRepository для текущей сессии БД.
-    
+
     Создается новый экземпляр для каждого запроса.
     """
     return BookRepository(db)
@@ -1938,13 +1940,14 @@ async def get_book_repository(
 
 # ========== SERVICES ==========
 
+
 async def get_book_service(
     book_repo: Annotated[BookRepository, Depends(get_book_repository)],
     ol_client: Annotated[OpenLibraryClient, Depends(get_openlibrary_client)],
 ) -> BookService:
     """
     Создать BookService с внедренными зависимостями.
-    
+
     FastAPI автоматически разрешит все зависимости:
     1. get_db() создаст AsyncSession
     2. get_book_repository() создаст BookRepository с session
@@ -2196,24 +2199,29 @@ async def dispose_engine() -> None:
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+
 class AppException(Exception):
     """Базовое исключение приложения."""
+
     def __init__(self, message: str, status_code: int = 400):
         self.message = message
         self.status_code = status_code
         super().__init__(self.message)
 
+
 class NotFoundException(AppException):
     """Ресурс не найден."""
+
     def __init__(self, resource: str, identifier: any):
         super().__init__(
             message=f"{resource} with id '{identifier}' not found",
             status_code=404,
         )
 
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Зарегистрировать обработчики исключений."""
-    
+
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
         return JSONResponse(
@@ -2226,6 +2234,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 ```python
 import logging
 import sys
+
 
 def setup_logging() -> None:
     """Настроить логирование приложения."""
@@ -2259,11 +2268,12 @@ from .api.v1.routers import books, health
 
 # ========== LIFECYCLE EVENTS ==========
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Lifecycle manager для FastAPI.
-    
+
     Выполняется при:
     - startup: настройка логирования
     - shutdown: закрытие подключений к БД
@@ -2271,9 +2281,9 @@ async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
     print("🚀 Application started")
-    
+
     yield
-    
+
     # Shutdown
     await dispose_engine()
     print("👋 Application stopped")
@@ -2319,6 +2329,7 @@ app.include_router(
 
 # ========== ROOT ENDPOINT ==========
 
+
 @app.get("/")
 async def root():
     """Корневой эндпоинт."""
@@ -2333,7 +2344,7 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
@@ -2454,6 +2465,7 @@ def get_db():
     finally:
         db.close()
 
+
 # Синхронный репозиторий
 def get_book(self, book_id: UUID):
     return self.session.query(Book).filter(Book.book_id == book_id).first()
@@ -2468,6 +2480,7 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
 
 # Async репозиторий
 async def get_book(self, book_id: UUID):
@@ -2522,6 +2535,7 @@ class BookMapper:
     @staticmethod
     def to_show_book(book: Book) -> ShowBook:
         return ShowBook(...)
+
 
 # Используем везде
 return BookMapper.to_show_book(book)

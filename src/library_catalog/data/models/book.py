@@ -82,6 +82,5 @@ class Book(Base):
         nullable=False,
     )
 
-
     def __repr__(self) -> str:
         return f"<Book(id={self.book_id}, title='{self.title}')>"
