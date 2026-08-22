@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     def database_url_str(self) -> str:
         return str(self.database_url)
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

@@ -9,6 +9,7 @@ from .config import settings
 class Base(DeclarativeBase):
     pass
 
+
 # Создать engine
 engine = create_async_engine(
     settings.database_url_str,
@@ -22,6 +23,7 @@ async_session_maker = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
 
 # Dependency для FastAPI
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
