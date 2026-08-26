@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy import select
@@ -12,7 +12,7 @@ class BaseRepository(Generic[T]):
         self.session = session
         self.model = model
 
-    async def create(self, **kwargs) -> T:
+    async def create(self, **kwargs: Any) -> T:
         """Создать запись."""
         instance = self.model(**kwargs)
         self.session.add(instance)
@@ -29,7 +29,7 @@ class BaseRepository(Generic[T]):
         """
         return await self.session.get(self.model, id)
 
-    async def update(self, id: UUID, **kwargs) -> T | None:
+    async def update(self, id: UUID, **kwargs: Any) -> T | None:
         """Обновить запись."""
         instance = await self.get_by_id(id)
         if not instance:
