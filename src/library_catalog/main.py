@@ -12,13 +12,13 @@ app = FastAPI(
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Корневой эндпоинт."""
     return {"message": "Welcome to Library Catalog API"}
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check эндпоинт."""
     return {"status": "healthy"}
 
