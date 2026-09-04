@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     debug: bool
     database_url: PostgresDsn
     database_pool_size: int = 20
+    api_v1_prefix: str = "/api/v1"
+    log_level: str = "INFO"
     docs_url: str = "/docs"
     redoc_url: str = "/redoc"
     cors_origins: list[str] = ["*"]
