@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     debug: bool
     database_url: PostgresDsn
     database_pool_size: int = 20
+    docs_url: str = "/docs"
+    redoc_url: str = "/redoc"
+    cors_origins: list[str] = ["*"]
+    openlibrary_base_url: str = "https://openlibrary.org"
+    openlibrary_timeout: float = 10.0
 
     model_config = SettingsConfigDict(
         env_file=".env",
