@@ -6,8 +6,11 @@ import pytest
 from src.library_catalog.api.v1.schemas.book import BookCreate
 from src.library_catalog.data.models.book import Book
 from src.library_catalog.domain.exceptions import (
-    BookAlreadyExistsException, InvalidYearException, InvalidPagesException, OpenLibraryException,
+    BookAlreadyExistsException,
     BookNotFoundException,
+    InvalidPagesException,
+    InvalidYearException,
+    OpenLibraryException,
 )
 from src.library_catalog.domain.services.book_service import BookService
 
