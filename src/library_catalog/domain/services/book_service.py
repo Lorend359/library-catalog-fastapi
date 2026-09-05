@@ -109,12 +109,20 @@ class BookService:
         if book_data.pages is not None:
             self._validate_pages(book_data.pages)
 
+
+        # Проверка уникальности ISBN (если передан и отличается от текущего)
+        if book_data.isbn is not None and book_data.isbn != existing.isbn:
+            duplicate = await self.book_repo.find_by_isbn(book_data.isbn)
+            if duplicate is not None:
+                raise BookAlreadyExistsException(book_data.isbn)
+
         # Обновить
         updated = await self.book_repo.update(
             book_id,
             **book_data.model_dump(exclude_unset=True),
         )
-        assert updated is not None
+        if updated is None:
+            raise BookNotFoundException(book_id)
 
         return BookMapper.to_show_book(updated)
 
