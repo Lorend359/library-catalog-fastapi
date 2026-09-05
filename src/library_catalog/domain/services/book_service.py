@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from ...api.v1.schemas.book import BookCreate, BookUpdate, ShowBook
@@ -12,6 +13,7 @@ from ..exceptions import (
 )
 from ..mappers.book_mapper import BookMapper
 
+logger = logging.getLogger(__name__)
 
 class BookService:
     """
@@ -210,9 +212,6 @@ class BookService:
             return extra if extra else None
         except OpenLibraryException:
             # Логируем но не прерываем создание книги
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.warning(
                 "Failed to enrich book data from Open Library",
                 extra={"title": book_data.title, "author": book_data.author},
