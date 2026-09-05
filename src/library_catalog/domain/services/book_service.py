@@ -15,6 +15,7 @@ from ..mappers.book_mapper import BookMapper
 
 logger = logging.getLogger(__name__)
 
+
 class BookService:
     """
     Сервис для работы с книгами.
