@@ -4,26 +4,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 
-class BookBase(BaseModel):
-    """Базовая схема с общими полями."""
-
-    title: str = Field(..., min_length=1, max_length=500)
-    author: str = Field(..., min_length=1, max_length=300)
-    year: int = Field(..., ge=1000, le=2100)
-    genre: str = Field(..., min_length=1, max_length=100)
-    pages: int = Field(..., gt=0)
-
-
-class BookCreate(BookBase):
-    """Схема для создания книги."""
-
-    isbn: str | None = Field(None, min_length=10, max_length=20)
-    description: str | None = Field(None, max_length=5000)
+class ISBNValidatorMixin(BaseModel):
+    """Миксин с валидацией формата ISBN."""
 
     @field_validator("isbn")
     @classmethod
     def validate_isbn(cls, v: str | None) -> str | None:
-        """Валидация формата ISBN."""
         if v is None:
             return v
 
@@ -36,6 +22,25 @@ class BookCreate(BookBase):
             raise ValueError("ISBN must be 10 or 13 digits")
 
         return v
+
+
+class BookBase(BaseModel):
+    """Базовая схема с общими полями."""
+
+    title: str = Field(..., min_length=1, max_length=500)
+    author: str = Field(..., min_length=1, max_length=300)
+    year: int = Field(..., ge=1000, le=2100)
+    genre: str = Field(..., min_length=1, max_length=100)
+    pages: int = Field(..., gt=0)
+
+
+class BookCreate(BookBase, ISBNValidatorMixin):
+    """Схема для создания книги."""
+
+    isbn: str | None = Field(None, min_length=10, max_length=20)
+    description: str | None = Field(None, max_length=5000)
+
+
 
     model_config = {
         "json_schema_extra": {
@@ -54,7 +59,7 @@ class BookCreate(BookBase):
     }
 
 
-class BookUpdate(BaseModel):
+class BookUpdate(ISBNValidatorMixin):
     """Схема для обновления книги (все поля опциональны)."""
 
     title: str | None = Field(None, min_length=1, max_length=500)
@@ -63,7 +68,7 @@ class BookUpdate(BaseModel):
     genre: str | None = Field(None, min_length=1, max_length=100)
     pages: int | None = Field(None, gt=0)
     available: bool | None = None
-    isbn: str | None = None
+    isbn: str | None = Field(None, min_length=10, max_length=20)
     description: str | None = None
 
 
