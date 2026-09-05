@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 class ISBNValidatorMixin(BaseModel):
     """Миксин с валидацией формата ISBN."""
 
-    @field_validator("isbn")
+    @field_validator("isbn", check_fields=False)
     @classmethod
     def validate_isbn(cls, v: str | None) -> str | None:
         if v is None:
