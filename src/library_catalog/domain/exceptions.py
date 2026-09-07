@@ -46,18 +46,15 @@ class InvalidPagesException(AppException):
 class OpenLibraryException(AppException):
     """Ошибка Open Library API."""
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, status_code: int = 503):
         super().__init__(
             message=f"Open Library API error: {message}",
-            status_code=503,
+            status_code=status_code,
         )
 
 
-class OpenLibraryTimeoutException(AppException):
+class OpenLibraryTimeoutException(OpenLibraryException):
     """Таймаут при обращении к Open Library API."""
 
     def __init__(self, timeout: float):
-        super().__init__(
-            message=f"Open Library API timeout after {timeout}s",
-            status_code=504,
-        )
+        super().__init__(f"timeout after {timeout}s", status_code=504)
